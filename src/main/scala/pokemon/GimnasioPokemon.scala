@@ -13,12 +13,31 @@ object GimnasioPokemon {
     lazy val velocidad = this.stats.velocidad
     lazy val fuerza = this.stats.fuerza
 
-    lazy val nivel = ???
+    lazy val nivel = {
+      //experiencia para llegar al nivel actual
+      //nivel actual
+      def nivelR(experienciaParaNivel: Int,
+                 nivel: Int): Int = {
+        val experienciaParaProximoNivel =
+          2 * experienciaParaNivel + especie.resistenciaEvolutiva
+        if (experienciaParaProximoNivel > experiencia) {
+          nivel
+        } else {
+          nivelR(experienciaParaProximoNivel, nivel + 1)
+        }
+      }
+      //Llamada recursiva de obtener el nivel a partir de la experiencia actual.
+      nivelR(0, 1)
+    }
+
+    def aumentarStats: Pokemon = {
+      this.copy(stats = this.stats + especie.aumentoStats)
+    }
 
     //def descansar: Pokemon = ???
 
-    def aumentarVelocidad(velocidadGanada: Int) =
-      ???//copy(velocidad= this.velocidad + velocidadGanada)
+    def aumentarVelocidad(velocidadGanada: Int): Pokemon =
+      this.copy(stats = stats.aumentarVelocidad(velocidadGanada))
 
     def hacerActividad(actividad: Actividad): Pokemon = {
       actividad(this)
@@ -91,7 +110,24 @@ object GimnasioPokemon {
   case class Stats(fuerza: Int,
                    velocidad: Int,
                    energiaMaxima: Int) {
-    def +(stats: Stats): Stats = ???
+    assert(fuerza > 0 && fuerza <= 100)
+    assert(velocidad > 0 && velocidad <= 100)
+
+    def aumentarVelocidad(velocidadNueva: Int): Stats = copy(velocidad = (velocidad + velocidadNueva).min(100))
+
+    def +(otroStats: Stats): Stats = {
+      copy(energiaMaxima = energiaMaxima + otroStats.energiaMaxima,
+        fuerza = fuerza + otroStats.fuerza,
+        velocidad = velocidad + otroStats.velocidad
+      )
+    }
+
+    def *(otroStats: Stats): Stats = {
+      copy(energiaMaxima = energiaMaxima * otroStats.energiaMaxima,
+        fuerza = fuerza * otroStats.fuerza,
+        velocidad = velocidad * otroStats.velocidad
+      )
+    }
   }
 
   case class Especie(tipoPrimario: Tipo,
