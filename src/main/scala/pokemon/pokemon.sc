@@ -14,3 +14,12 @@ val l2  = l.collect(
   }
 )
 print(l2)
+object B {
+  def apply(): Int = 2
+}
+
+object A {
+  val m = B
+}
+
+print(A.m)
