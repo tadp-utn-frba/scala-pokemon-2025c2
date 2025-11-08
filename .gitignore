@@ -1,3 +1,6 @@
+.metals
+.vscode
+.bsp/*
 *.class
 *.log
 

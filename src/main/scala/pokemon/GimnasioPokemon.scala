@@ -43,9 +43,12 @@ object GimnasioPokemon {
       actividad(this)
     }
 
-    def ganarExperiencia(xp: Int) = {
-      copy(experiencia = this.experiencia + xp)
-      // chequeo de nivel y cambio de stats si aumenta de nivel
+    def ganaExperiencia(xpGanada: Int) = {
+      val pokemonNuevo = copy(experiencia= experiencia+xpGanada)
+      if(pokemonNuevo.nivel > this.nivel) {
+        // Chequear si sube de nivel y aumentar Stats
+        pokemonNuevo.aumentarStats
+      } else pokemonNuevo
     }
 
     def recuperarEnergiaMaxima = copy(energia = energiaMaxima)
