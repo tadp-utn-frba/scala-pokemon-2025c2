@@ -43,7 +43,7 @@ object GimnasioPokemon {
       actividad(this)
     }
 
-    def ganaExperiencia(xpGanada: Int) = {
+    def ganarExperiencia(xpGanada: Int) = {
       val pokemonNuevo = copy(experiencia= experiencia+xpGanada)
       if(pokemonNuevo.nivel > this.nivel) {
         // Chequear si sube de nivel y aumentar Stats
@@ -63,7 +63,6 @@ object GimnasioPokemon {
   }
   // companion object
   object Pokemon {
-
   }
 
   type Actividad = Pokemon => Pokemon
