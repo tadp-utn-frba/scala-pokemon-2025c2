@@ -1,257 +1,139 @@
 package pokemon.GimnasioPokemon
 
+import pokemon.GimnasioPokemon.GimnasioPokemon.EsDeTipo
+
 object GimnasioPokemon {
   case class Pokemon(experiencia: Int,
-                     energia: Int,
                      stats: Stats,
-                     especie: Especie,
-                     estado: Estado = Sano
+                     especie: Especie
                     ) {
-    require(energia <= energiaMaxima && energia >= 0)
+    def energiaMaxima = stats.energiaMaxima
 
-    // accesors de stats
-    lazy val energiaMaxima = this.stats.energiaMaxima
-    lazy val velocidad = this.stats.velocidad
-    lazy val fuerza = this.stats.fuerza
+    def energiaMaxima_=(newEnergiaMaxima: Int) =
+      this.copy(stats = this.stats.copy(energiaMaxima = newEnergiaMaxima))
 
-    def esDebil(otroTipo: Tipo): Boolean = ???
+    def descansar = Descansar()(this)
 
-    // lazy val: se evalua por primera y unica vez cuando se lo llama.
-    lazy val nivel = {
-      //experiencia para llegar al nivel actual
-      def nivelR(experienciaParaNivel: Int,
-                 nivel: Int): Int = {
-        val experienciaParaProximoNivel =
-          2 * experienciaParaNivel + especie.resistenciaEvolutiva
-        if (experienciaParaProximoNivel > experiencia) {
-          nivel
-        } else {
-          nivelR(experienciaParaProximoNivel, nivel + 1)
-        }
-      }
-      //Llamada recursiva de obtener el nivel a partir de la experiencia actual.
-      nivelR(0, 1)
-    }
+    def setStats(energia: Int = this.stats.energia,
+                 energiaMaxima: Int = this.stats.energiaMaxima,
+                 fuerza: Int = this.stats.fuerza,
+                 velocidad: Int = this.stats.velocidad) =
+      this.copy(stats = Stats(energia, energiaMaxima, fuerza, velocidad))
+  }
+  object Pokemon {
+//    def unapply(p: Pokemon) = {
+//      Option((p.experiencia, p.stats, p.especie))
+//    }
+  }
 
-    def aumentarStats: Pokemon = {
-      this.copy(stats = this.stats + especie.aumentoStats)
-    }
+  case class Stats(energia: Int,
+                   energiaMaxima: Int,
+                   fuerza: Int,
+                   velocidad: Int) {
+    require(energia > 0 && energia <= energiaMaxima)
+    require(fuerza > 1 && fuerza <= 100)
+    require(velocidad > 1 && velocidad <= 100)
 
-    def sePoneTriste: Pokemon = pierdeEnergia(10)
+  }
 
-    //def descansar: Pokemon = ???
+  case class Especie(tipoPrincipal: Tipo, tipoSecundario: Option[Tipo]) {
+      def esTipo(tipo: Tipo) =
+        esTipoPrimario(tipo) || esTipoSecundario(tipo)
 
-    def aumentarVelocidad(velocidadGanada: Int): Pokemon =
-      this.copy(stats = stats.aumentarVelocidad(velocidadGanada))
+      def esTipoPrimario(tipo: Tipo) = tipoPrincipal == tipo
+      def esTipoSecundario(tipo: Tipo) = tipoSecundario == tipo
+  }
 
-    // asumimos que todas las actividades pasan por este metodo.
-    def hacerActividad(actividad: Actividad): Pokemon = {
-      if this.estado == KO then
-        throw new Exception("El pokemon esta K.O.")
-      else
-        actividad(this)
-    }
 
-    def ganarExperiencia(xpGanada: Int) = {
-      val pokemonNuevo = copy(experiencia= experiencia+xpGanada)
-      if(pokemonNuevo.nivel > this.nivel) {
-        // Chequear si sube de nivel y aumentar Stats
-        val pokemonAumentado = pokemonNuevo.aumentarStats
-        pokemonAumentado.especie.condicionEvolutiva.fold(pokemonAumentado)(
-          ce => ce.intentarEvolucionarPorNivel(pokemonAumentado)
-        )
-      } else pokemonNuevo
-    }
-
-    def evolucionar(evolucion: Especie) = copy(especie=evolucion)
-
-    def cambiaEstado(estadoNuevo: Estado) = copy(estado = estadoNuevo)
-
-    def recuperarEnergiaMaxima = copy(energia = energiaMaxima)
-
-    def pierdeEnergia(energiaPerdida: Int) = {
-      copy(energia = (this.energia - energiaPerdida).max(0))
-    }
-
-    def recuperarEnergia(energiaARecuperar: Int) = {
-      copy(energia = (this.energia + energiaARecuperar).min(this.energiaMaxima))
+  trait Tipo {
+    def unapply(pokemon: Pokemon): Option[Tipo] = {
+      val especie = pokemon.especie
+      Option(this).filter(especie.esTipoPrimario)
     }
   }
-  // companion object
-  object Pokemon {
+  case object Fantasma extends Tipo
+  case object Fuego extends Tipo
+  case object Agua extends Tipo
+  case object Roca extends Tipo
+  case object Pelea extends Tipo
+  case object Electrico extends Tipo
+
+  object EsDeTipo {
+    def unapply(pokemon: Pokemon): Option[Tipo] =
+      Option(pokemon.especie.tipoPrincipal)
+  }
+
+  object Tipos {
+    def unapplySeq(pokemon: Pokemon): Option[Seq[Tipo]] = {
+      val especie = pokemon.especie
+      Option(especie.tipoPrincipal::especie.tipoSecundario.toList)
+    }
   }
 
   type Actividad = Pokemon => Pokemon
-  //trait ActividadT extends (Pokemon => Pokemon) {
-  //}
-  case object Descansar extends Actividad {
-    override def apply(p: Pokemon): Pokemon =
-      p.recuperarEnergiaMaxima
-  }
-  val descansar: Actividad = _.recuperarEnergiaMaxima
 
-  case class LevantarPesas(kilos: Int) extends Actividad {
-    override def apply(p: Pokemon): Pokemon = p match {
-      case Fantasma(_,_) => throw new Exception("Un fantasma no puede levantar pesas")
-      case _ if kilos >= (p.fuerza * 10) => p.pierdeEnergia(10)
-      case _ => p.ganarExperiencia(experienciaAGanar(p))
-    }
-
-    def experienciaAGanar(p: Pokemon): Int = {
-      if p.especie.esTipo(Peleador) then
-        kilos * 2
-      else
-        kilos
-    }
+  //definir actividad como trait
+  // objetos como funciones
+  trait Actividad2 {
+    def apply(pokemon: Pokemon): Pokemon
   }
 
-  //Por cada minuto de nado, un Pokémon pierde 1
-  // punto de Energía y gana 200 de Experiencia.
-  //Los Pokémon de Tipo Agua ganan, además,
-  // 1 punto de Velocidad por hora.
-  //Los Pokémon con un Tipo Principal o Secundario que "pierde" contra el Tipo
-  // Agua no ganan nada de
-  //Experiencia y quedan K.O. automáticamente.
-  // Los tipos que pierden contra agua son Roca, Tierra y
-  //Fuego.
-  case class Nadar(minutos: Int) extends Actividad {
-    override def apply(p: Pokemon): Pokemon = {
-      val pokemonEntrenado = p
-        .pierdeEnergia(minutos)
-        .ganarExperiencia(200*minutos)
-      if p.esDebil(Agua) then
-        p.cambiaEstado(KO) else
-      if p.especie.esTipo(Agua) then
-        pokemonEntrenado.aumentarVelocidad(minutos/60)
-      else pokemonEntrenado
+  class Descansar extends Actividad {
+    override def apply(pokemon: Pokemon): Pokemon =
+      pokemon.setStats(energia = pokemon.energiaMaxima)
+  }
+
+  def descansar(pokemon: Pokemon): Pokemon =
+    pokemon.setStats(energia = pokemon.energiaMaxima)
+
+  // sin efecto. Retorna otro pokemon.
+  def levantarPesas(pokemon: Pokemon): Pokemon = {
+    pokemon match {
+      case Fantasma => ???
+      case EsDeTipo(x) if x == Fantasma => ???
+      case Tipos(Fantasma, Fuego) => ???
+      case Tipos(xs:_*) if xs.contains(Fantasma) => ???
     }
   }
 
-  case object Intercambiar extends Actividad {
-    override def apply(p: Pokemon): Pokemon = {
-      p.especie.condicionEvolutiva.fold(p.sePoneTriste)(
-        ce => ce.intentarEvolucionarPorIntercambio(p)
-      )
-    }
-  }
-
-  trait Piedra {
-    def afectaPokemon(pokemon: Pokemon): Boolean = ???
-  }
-  case class UsarPiedra(piedra: Piedra) extends Actividad {
-    override def apply(p: Pokemon): Pokemon = {
-      p.especie.condicionEvolutiva.fold(p)(
-        ce => ce.intentarEvolucionarPorPiedra(p, piedra)
-      )
-    }
-  }
-  //def hacerActividad(pokemon: Pokemon,
-  //                   actividad: ActividadT): Pokemon = actividad match {
-  //    case Descansar => descansar(pokemon)
-  //    case _ => ???
-  //  }
-
-  case class Stats(fuerza: Int,
-                   velocidad: Int,
-                   energiaMaxima: Int) {
-    assert(fuerza > 0 && fuerza <= 100)
-    assert(velocidad > 0 && velocidad <= 100)
-
-    def aumentarVelocidad(velocidadNueva: Int): Stats =
-      copy(velocidad = (velocidad + velocidadNueva).min(100))
-
-    def +(otroStats: Stats): Stats = {
-      copy(energiaMaxima = energiaMaxima + otroStats.energiaMaxima,
-        fuerza = fuerza + otroStats.fuerza,
-        velocidad = velocidad + otroStats.velocidad
-      )
-    }
-
-    def *(otroStats: Stats): Stats = {
-      copy(energiaMaxima = energiaMaxima * otroStats.energiaMaxima,
-        fuerza = fuerza * otroStats.fuerza,
-        velocidad = velocidad * otroStats.velocidad
-      )
-    }
-  }
-
-  trait CondicionEvolutiva(evolucion: Especie) {
-    def intentarEvolucionarPorNivel(pokemon: Pokemon): Pokemon = pokemon
-    def intentarEvolucionarPorIntercambio(pokemon: Pokemon): Pokemon = {
-      pokemon.sePoneTriste
-    }
-    def intentarEvolucionarPorPiedra(pokemon: Pokemon, piedra: Piedra) = pokemon
-  }
-
-  class Nivel(evolucion: Especie, nivelMinimo: Int)
-    extends CondicionEvolutiva(evolucion: Especie) {
-    override def intentarEvolucionarPorNivel(pokemon: Pokemon): Pokemon = {
-      if pokemon.nivel >= nivelMinimo then
-        pokemon.evolucionar(evolucion)
-      else
-        pokemon
-    }
-  }
-
-  class Intercambiar(evolucion: Especie)
-    extends CondicionEvolutiva(evolucion: Especie) {
-    override def intentarEvolucionarPorIntercambio(pokemon: Pokemon) =
-      pokemon.evolucionar(evolucion)
-  }
-
-  class EvolucionPorPiedra(evolucion: Especie, piedraEvolucion: Piedra)
-    extends CondicionEvolutiva(evolucion: Especie) {
-    override def intentarEvolucionarPorPiedra(pokemon: Pokemon, piedra: Piedra) = {
-      if piedraEvolucion == piedra then
-        pokemon.evolucionar(evolucion)
-      else pokemon
-    }
-  }
-
-  case class Especie(tipoPrimario: Tipo,
-                     tipoSecundario: Option[Tipo],
-                     aumentoStats: Stats,
-                     resistenciaEvolutiva: Int,
-                     condicionEvolutiva: Option[CondicionEvolutiva]) {
-
-    def esTipo(tipo: Tipo): Boolean =
-      esTipoPrimario(tipo) || esTipoSecundario(tipo)
-    def esTipoPrimario(tipo: Tipo): Boolean =
-      tipoPrimario == tipo
-    def esTipoSecundario(tipo: Tipo): Boolean =
-      tipoSecundario.exists(_ == tipo)
-  }
-
-  // sealed previene que se pueda extender en otro package
-  sealed trait Tipo {
-    def unapply(pokemon: Pokemon): Option[(Boolean, Boolean)] = {
-      val especie = pokemon.especie
-      if especie.esTipo(this) then
-        Some(especie.esTipoPrimario(this),
-          especie.esTipoSecundario(this))
-      else None
-    }
-
-    def esDebil(otroTipo: Tipo): Boolean = ???
-  }
-  case object Roca extends Tipo
-  case object Agua extends Tipo
-  case object Peleador extends Tipo
-  case object Fantasma extends Tipo
-  case object Fuego extends Tipo
-  case object Electrico extends Tipo
-
-  sealed trait Estado
-  case object KO extends Estado
-  case object Paralizado extends Estado
-  case object Sano extends Estado
-  case class Dormido(actividades_restantes: Int) extends Estado
-
-  val pikachu = Pokemon(0, 100, Stats(100,
-    20, 30), Especie(Electrico, None, Stats(10, 1,1), 2, None))
 
 
-  val pikachuEntrenado = pikachu.hacerActividad(descansar)
+
+
+
+
+
+
+
+
+
+
+  val statsPikachu = Stats(energia = 100, energiaMaxima = 200, fuerza = 10, velocidad = 35)
+  val pikachu = Pokemon.apply(
+    experiencia= 100,
+    stats= statsPikachu,
+    especie = ???
+  )
+
+
+  descansar(pikachu)
+  descansar.apply(pikachu)
+  new Descansar().apply(pikachu)
+  new Descansar()(pikachu)
+
+
+  var actividad: Actividad = descansar
+  actividad = descansar.apply(_)
+  actividad = new Descansar()
+  actividad = new Descansar()(_)
+  actividad = _.descansar
+  actividad =  p => p.descansar
+
+
+
+
+
+  //val pikachuEntrenado = pikachu.hacerActividad(descansar)
   //val pikachuEntrenado2 = pikachu.hacerActividad(
   //  hacerActividad(_, Descansar)
   //)
@@ -259,11 +141,11 @@ object GimnasioPokemon {
   //  _.descansar
   //)
   //val fxDescansar: Actividad = _.descansar
-  val fxDescansar2: Actividad = Descansar
-  val pikachuEntrenado4 = pikachu.hacerActividad(
-    Descansar
-  )
-  Nadar(2).apply(pikachuEntrenado4)
+  //  val fxDescansar2: Actividad = Descansar
+  //  val pikachuEntrenado4 = pikachu.hacerActividad(
+  //    Descansar
+  //  )
+  //  Nadar(2).apply(pikachuEntrenado4)
 }
 
 
@@ -271,5 +153,31 @@ object GimnasioPokemon {
 
 
 
+
+
+
+
+
+
+
+
+
+
+// lazy val: se evalua por primera y unica vez cuando se lo llama.
+//    lazy val nivel = {
+//      //experiencia para llegar al nivel actual
+//      def nivelR(experienciaParaNivel: Int,
+//                 nivel: Int): Int = {
+//        val experienciaParaProximoNivel =
+//          2 * experienciaParaNivel + especie.resistenciaEvolutiva
+//        if (experienciaParaProximoNivel > experiencia) {
+//          nivel
+//        } else {
+//          nivelR(experienciaParaProximoNivel, nivel + 1)
+//        }
+//      }
+//      //Llamada recursiva de obtener el nivel a partir de la experiencia actual.
+//      nivelR(0, 1)
+//    }
 
 
